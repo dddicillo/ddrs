@@ -1,0 +1,27 @@
+---
+sudo: required
+services:
+  - docker
+env:
+  global:
+    - IMAGE_NAME=dddicillo/ddrs
+    - REGISTRY_USER=dddicillo
+
+before_script:
+  - sudo apt-get install jq
+  - version="$(cat package.json | jq -r ".version")"
+  - docker image pull "${IMAGE_NAME}" || true
+
+script:
+  - docker image build --pull --cache-from "${IMAGE_NAME}" --tag "${IMAGE_NAME}" .
+
+before_deploy:
+  - docker login -u "${REGISTRY_USER}" -p "${REGISTRY_TOKEN}"
+  - docker image tag "${IMAGE_NAME}" "${IMAGE_NAME}:latest"
+  - docker iamge tag "${IMAGE_NAME}" "${IMAGE_NAME}:${VERSION}"
+
+deploy:
+  provider: script
+  script: docker image push "${IMAGE_NAME}:latest" && docker image push "${IMAGE_NAME}:${VERSION}"
+  on:
+    branch: master
