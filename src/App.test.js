@@ -1,8 +1,14 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
+import { mount } from "enzyme";
+import App from "./App";
+import MenuBar from "./components/MenuBar";
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+describe("<App />", () => {
+  let wrapper;
+  beforeEach(() => {
+    wrapper = mount(<App />);
+  });
+
+  it("should render <MenuBar />", () => {
+    expect(wrapper.find(MenuBar).length).toEqual(1);
+  });
 });
