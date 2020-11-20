@@ -1,0 +1,72 @@
+version: 2.1
+orbs:
+  node: circleci/node@4.1.0
+  docker: circleci/docker@1.5.0
+  jq: circleci/jq@2.2.0
+
+jobs:
+  lint:
+    docker:
+      - image: node:15.2.1-alpine
+    steps:
+      - checkout
+      - run:
+          name: Lint code
+          command: npm install eslint && npm run lint
+
+  test:
+    docker:
+      - image: node:15.2.1-alpine
+    steps:
+      - checkout
+      - node/install-packages
+      - run:
+          name: Run NPM Tests
+          command: npm run test -- --ci --runInBand --watchAll=false --reporters default --reporters jest-junit
+          environment:
+            JEST_JUNIT_OUTPUT_DIR: ./reports/junit/
+      - store_test_results:
+          path: ./reports/junit/
+
+  docker-build-and-publish:
+    executor: docker/machine
+    steps:
+      - checkout
+      - run:
+          name: Generate auth_config.json
+          command: |
+            cp "src/auth_config.json.example" "src/auth_config.json"
+            sed --in-place "s|{DOMAIN}|${AUTH0_DOMAIN}|g" "src/auth_config.json"
+            sed --in-place "s|{CLIENT_ID}|${AUTH0_CLIENT_ID}|g" "src/auth_config.json"
+            sed --in-place "s|{AUDIENCE}|${AUTH0_AUDIENCE}|g" "src/auth_config.json"
+      - docker/build:
+          image: ${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+          tag: latest
+          cache_from: ${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:latest
+      - jq/install
+      - deploy:
+          name: Docker push
+          command: |
+            version="$(cat "package.json" | jq -r ".version")"
+            docker image tag "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:latest" "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:${version}"
+            docker login --username "${DOCKER_LOGIN}" --password "${DOCKER_PASSWORD}"
+            docker image push "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:latest"
+            docker image push "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:${version}"
+            
+workflows:
+  ci:
+    jobs:
+      - lint:
+          name: lint
+      - test:
+          name: test
+      - docker-build-and-publish:
+          name: docker-build-and-publish
+          requires:
+            - lint
+            - test
+          filters:
+            branches:
+              only:
+                - master
+
