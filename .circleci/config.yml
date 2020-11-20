@@ -3,6 +3,7 @@ orbs:
   node: circleci/node@4.1.0
   docker: circleci/docker@1.5.0
   jq: circleci/jq@2.2.0
+  helm: banzaicloud/helm@0.0.8
 
 jobs:
   lint:
@@ -52,7 +53,27 @@ jobs:
             docker login --username "${DOCKER_LOGIN}" --password "${DOCKER_PASSWORD}"
             docker image push "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:latest"
             docker image push "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:${version}"
-            
+
+  helm-build-and-publish:
+    executor: helm/helm3
+    steps:
+      - checkout
+      - helm/setup-repositories:
+          chartmuseum-url: cm://charts.banzaicloud.io/gh/CWDG
+      - helm/update-dependencies
+      - helm/lint
+      - run:
+          name: Build chart
+          command: |
+            helm package \
+              --destination "/workspace/tgz" \
+              "charts/ddrs"
+      - run:
+          name: Publish chart
+          command: |
+            tgz="$(find "/workspace/tgz/" -name "*.tgz")"
+            helm push "${tgz}" chartmuseum --force
+
 workflows:
   ci:
     jobs:
@@ -70,3 +91,12 @@ workflows:
               only:
                 - master
 
+  helm:
+    jobs:
+      - helm-build-and-publish:
+          name: helm-build-and-publish
+          filters:
+            branches:
+              only:
+                - master
+                - add-helm-chart
