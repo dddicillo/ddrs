@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ddrs.fullname" . }}
+  labels:
+    {{- include "ddrs.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.ambassador.enabled }}
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v1
+      kind: Mapping
+      name: ddrs_mapping
+      prefix: /ddrs/
+      timeout_ms: 10000
+      service: {{ include "ddrs.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.service.port }}
+    {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "ddrs.selectorLabels" . | nindent 4 }}

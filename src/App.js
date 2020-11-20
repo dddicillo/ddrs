@@ -14,7 +14,7 @@ const App = () => {
   const classes = useStyles();
 
   return (
-    <Router>
+    <Router basename={"ddrs"}>
       <div className="App">
         <MenuBar />
         <div className={classes.container}>

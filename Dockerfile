@@ -1,8 +1,8 @@
 FROM node:15.2.1-alpine as build
 WORKDIR /app
+RUN npm install react-scripts --global --silent
 COPY package*.json ./
 RUN npm ci --silent
-RUN npm install react-scripts --global --silent
 COPY . ./
 RUN npm run build
 
