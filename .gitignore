@@ -12,6 +12,7 @@ src/auth_config.json
 
 # production
 /build
+*.tgz
 
 # misc
 .DS_Store
